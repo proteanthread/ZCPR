@@ -45,6 +45,7 @@
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
+#define strcasecmp _stricmp
 #else
 #include <unistd.h>
 #include <sys/types.h>
