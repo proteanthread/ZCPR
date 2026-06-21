@@ -137,6 +137,10 @@ int longcmp(long d1, long d2);
 #include "p-gcc.h"
 #endif
 
+#ifdef _MSC_VER
+#include "p-msvc.h"
+#endif
+
 #endif	/* _MICROC_ */
 
 #ifndef strend

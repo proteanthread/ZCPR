@@ -16,15 +16,87 @@
     License along with this library; if not, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
-/* Portable include file for GCC (ia16-elf-gcc) */
+/* Portable include file for GCC (supports both 16-bit ia16-elf-gcc and modern 64-bit systems) */
 
 #ifdef __GNUC__
 
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdint.h>
+
 #ifndef EZERO
 #define EZERO 0
 #endif
+
+/* Check for 64-bit or flat model targets */
+#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || defined(__LP64__) || defined(_WIN64) || defined(__i386__) || defined(_M_IX86)
+#define __ZCPR_64BIT__ 1
+#endif
+
+#ifdef __ZCPR_64BIT__
+
+#define far
+#define farcode
+#define fardata
+#define near
+#define huge
+#define interrupt
+#define pascal
+#define cdecl
+
+/* byte/word/dword type mapping for 64-bit clean C17 */
+typedef uint8_t byte;
+typedef uint16_t word;
+typedef unsigned int dword;
+typedef int FLAG;
+typedef int FLAG8;
+
+#ifndef _CLIB_
+#define peekb(segm,ofs) (*(volatile byte*)(uintptr_t)((((uintptr_t)(segm)) << 4) + (ofs)))
+#define peekw(segm,ofs) (*(volatile word*)(uintptr_t)((((uintptr_t)(segm)) << 4) + (ofs)))
+#define pokeb(segm,ofs,value) (*(volatile byte*)(uintptr_t)((((uintptr_t)(segm)) << 4) + (ofs)) = (byte)(value))
+#define pokew(segm,ofs,value) (*(volatile word*)(uintptr_t)((((uintptr_t)(segm)) << 4) + (ofs)) = (word)(value))
+#endif
+
+#define _osversion 0x061E /* DOS 6.30 simulation */
+
+typedef void (*isr)(void);
+#define set_isrfct(num,fct) ((void)0)
+#define get_isr(num,var) ((var) = NULL)
+#define set_isr(num,var) ((void)0)
+#define ASMINTERRUPT
+
+/* calling an interrupt REGPACK definition */
+typedef struct {
+    unsigned int r_ax;
+    unsigned int r_bx;
+    unsigned int r_cx;
+    unsigned int r_dx;
+    unsigned int r_bp;
+    unsigned int r_si;
+    unsigned int r_di;
+    unsigned int r_ds;
+    unsigned int r_es;
+    unsigned int r_flags;
+} IREGS;
+
+/* forward declaration of the C replacement for intr.asm */
+void intr(int intno, void *regs);
+#define intrpt(num,regs) intr((num), (regs))
+
+#define _CS 0
+
+/* Disk and file function stubs/simulations */
+static inline int getdisk(void) { return 2; /* Drive C: */ }
+static inline int setdisk(int drive) { (void)drive; return 0; }
+static inline int _dos_getftime(int fd, unsigned *date, unsigned *time) { (void)fd; *date = 0; *time = 0; return 0; }
+static inline int _dos_setftime(int fd, unsigned date, unsigned time) { (void)fd; (void)date; (void)time; return 0; }
+static inline void far *_dos_getvect(int intno) { (void)intno; return NULL; }
+static inline void _dos_setvect(int intno, void far *vect) { (void)intno; (void)vect; }
+static inline void far *getdta(void) { return NULL; }
+static inline void setdta(void far *dta) { (void)dta; }
+
+#else /* 16-bit GCC (ia16-elf-gcc) target */
 
 #ifdef __FAR
 #define far __far
@@ -43,8 +115,6 @@
 #define G_ARG_DEF			/* definition of global variables */
 #define G_ARG_INIT			/* initialization of global variables */
 
-
-
 /* byte/word/dword type */
 typedef unsigned char byte;
 typedef unsigned short word;
@@ -62,7 +132,6 @@ typedef unsigned long dword;
 #define pokeb(segm,ofs,value) (peekb((segm),(ofs)) = (byte)(value))
 #define pokew(segm,ofs,value) (peekw((segm),(ofs)) = (word)(value))
 #endif
-
 
 #define _osversion MK_OSVERS(_osmajor, _osminor)
 
@@ -160,4 +229,7 @@ static inline void setdta(void far *dta)
 	asm volatile("int $0x21" :
 		     : "Rah"((char)0x1a), "Rds"(FP_SEG(dta)), "d"(FP_OFF(dta)));
 }
-#endif
+
+#endif /* __ZCPR_64BIT__ */
+
+#endif /* __GNUC__ */
